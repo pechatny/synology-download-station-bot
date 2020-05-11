@@ -52,7 +52,8 @@ class DownloadStationService(val downloadStationConfig: DownloadStationConfig, v
             params = mapOf(
                 "api" to "SYNO.DownloadStation.Task",
                 "version" to "3",
-                "method" to "list"
+                "method" to "list",
+                "additional" to "transfer"
             ),
             cookies = mapOf("smid" to smid, "id" to id)
         )
@@ -111,6 +112,8 @@ fun List<Task>.toText(): String {
 """
 Название: ${item.title}
 Размер: ${(item.size / 1073741824)} ГБ
+Скачано: ${(item.additional?.transfer?.size_downloaded?: 0 / 1073741824L)} ГБ
+Осталось: ${item.endTime} Мин
 """
     }
     return stringTasks

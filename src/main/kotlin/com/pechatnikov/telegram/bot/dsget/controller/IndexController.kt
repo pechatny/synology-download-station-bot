@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping
 @RequestMapping(produces = [(MediaType.APPLICATION_JSON_VALUE)])
 class IndexController {
 
-    @GetMapping(value = ["/"])
+    @GetMapping(value = ["/ping"])
     public fun index(): ResponseEntity<Response> {
-        return ResponseEntity.ok(Response("my message"))
+        return ResponseEntity.ok(Response("ok"))
     }
 
 

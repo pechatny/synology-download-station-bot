@@ -14,7 +14,37 @@ data class Task(
     val status: TaskStatus,
     val title: String,
     val type: String,
-    val username: String
+    val username: String,
+    var endTime: String? = null,
+    val additional: Additional? = null
+) {
+    init {
+        endTime = estimateEndTime()
+    }
+
+    private fun estimateEndTime(): String {
+        var estimatedEndTime = "Не определено"
+        additional.let { additionalItem ->
+            additionalItem?.transfer?.let { transfer ->
+                val lostSize = this.size - transfer.size_downloaded
+                estimatedEndTime = (lostSize / transfer.speed_download / 60).toString()
+            }
+        }
+
+        return estimatedEndTime
+    }
+}
+
+data class Additional(
+    val transfer: Transfer
+)
+
+data class Transfer(
+    val downloaded_pieces: Long,
+    val size_downloaded: Long,
+    val size_uploaded: Long,
+    val speed_download: Long,
+    val speed_upload: Long
 )
 
 class TaskStatusDeserializer(vc: Class<*>? = null) : StdDeserializer<TaskStatus>(vc) {
