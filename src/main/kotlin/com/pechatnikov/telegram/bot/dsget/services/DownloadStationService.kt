@@ -112,7 +112,7 @@ fun List<Task>.toText(): String {
 """
 Название: ${item.title}
 Размер: ${(item.size / 1073741824)} ГБ
-Скачано: ${(item.additional?.transfer?.size_downloaded?: 0 / 1073741824)} ГБ
+Скачано: ${(item.additional?.transfer?.size_downloaded?: 0) / 1073741824} ГБ
 Осталось: ${item.endTime} Мин
 """
     }

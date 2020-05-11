@@ -24,7 +24,7 @@ data class Task(
     }
 
     private fun estimateEndTime(): String {
-        var estimatedEndTime = "Не определено"
+        var estimatedEndTime = "∞"
         additional.let { additionalItem ->
             additionalItem?.transfer?.let { transfer ->
                 val lostSize = this.size - transfer.size_downloaded
