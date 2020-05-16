@@ -8,26 +8,21 @@ import org.telegram.telegrambots.meta.api.objects.Update
 
 @Service
 class AuthorizeService(
-    val usersRepository: UsersRepository,
     val chatService: ChatService,
-    val downloadStationService: DownloadStationService,
-    val userService: UserService
+    val userService: UserService,
+    val downloadStationService: DownloadStationService
 ) {
     fun checkUser(userId: Long, chatId: Long): User {
-        val user: User? = usersRepository.findByUserId(userId)
+        val user: User? = userService.findByUserId(userId)
 
         return if (user == null) {
-            val newUser = createUser(userId)
-            val chat = chatService.createChat(chatId)
-            newUser.chat = chat
-            usersRepository.save(newUser)
+            val newUser = userService.create(userId)
+            newUser.chat = chatService.createChat(chatId)
+            userService.update(newUser)
             newUser
         } else {
             user
         }
-    }
-
-    fun checkAuthorization(user: User) {
     }
 
     fun authorize(user: User, update: Update): SendMessage? {
@@ -54,12 +49,5 @@ class AuthorizeService(
         } else {
             return null
         }
-    }
-
-    fun createUser(userId: Long): User {
-        val newUser = User(userId = userId, authorized = false)
-        usersRepository.save(newUser)
-
-        return newUser
     }
 }

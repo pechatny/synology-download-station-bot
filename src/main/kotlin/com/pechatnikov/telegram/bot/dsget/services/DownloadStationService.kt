@@ -2,6 +2,8 @@ package com.pechatnikov.telegram.bot.dsget.services
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.pechatnikov.telegram.bot.dsget.configuration.DownloadStationConfig
+import com.pechatnikov.telegram.bot.dsget.services.models.AuthCookies
+import com.pechatnikov.telegram.bot.dsget.services.models.Authentication
 import com.pechatnikov.telegram.bot.dsget.services.models.DsResponse
 import com.pechatnikov.telegram.bot.dsget.services.models.LoginRequest
 import com.pechatnikov.telegram.bot.dsget.services.models.Task
@@ -9,41 +11,42 @@ import com.pechatnikov.telegram.bot.dsget.services.models.TaskStatus
 import com.pechatnikov.telegram.bot.dsget.services.models.TasksResponse
 import khttp.structures.files.FileLike
 import org.slf4j.LoggerFactory
+import org.springframework.cache.annotation.Cacheable
+import org.springframework.cache.annotation.Caching
 import org.springframework.stereotype.Service
 import java.nio.charset.Charset
 
 @Service
-class DownloadStationService(val downloadStationConfig: DownloadStationConfig, val objectMapper: ObjectMapper) {
+class DownloadStationService(private val downloadStationConfig: DownloadStationConfig, val objectMapper: ObjectMapper) {
     private val logger = LoggerFactory.getLogger(DownloadStationService::class.java)
     private val BASE_AUTH_URL = "${downloadStationConfig.url}/webapi/auth.cgi"
     private val BASE_TASK_URL = "${downloadStationConfig.url}/webapi/DownloadStation/task.cgi"
-    private lateinit var smid: String
-    private lateinit var id: String
+    private lateinit var authCookies: AuthCookies
 
     init {
         login()
     }
 
-    fun auth(login: String, password: String): Boolean {
+    @Cacheable("auth")
+    fun authenticate(login: String, password: String): Authentication{
         val request = LoginRequest(login, password).toMap()
         val response = khttp.get(
             url = """$BASE_AUTH_URL?api=${request["api"]}&version=${request["version"]}&method=${request["method"]}&account=${request["account"]}&passwd=${request["passwd"]}&session=${request["session"]}&format=${request["format"]}"""
         )
-
         response.encoding = Charset.defaultCharset()
         val dsResponse = objectMapper.readValue(response.text, DsResponse::class.java)
+        val authCookies = AuthCookies(response.cookies["id"].toString(), response.cookies["smid"].toString())
+        return Authentication(dsResponse, authCookies)
+    }
 
-        return dsResponse.success
+    fun auth(login: String, password: String): Boolean {
+        val authentication = authenticate(downloadStationConfig.login, downloadStationConfig.password)
+        return authentication.dsResponse.success
     }
 
     private fun login() {
-        val request = LoginRequest(downloadStationConfig.login, downloadStationConfig.password).toMap()
-        val response = khttp.get(
-            url = """$BASE_AUTH_URL?api=${request["api"]}&version=${request["version"]}&method=${request["method"]}&account=${request["account"]}&passwd=${request["passwd"]}&session=${request["session"]}&format=${request["format"]}"""
-        )
-
-        smid = response.cookies["smid"].toString()
-        id = response.cookies["id"].toString()
+        val authentication = authenticate(downloadStationConfig.login, downloadStationConfig.password)
+        authCookies = authentication.authCookies
     }
 
     private fun getTasks(): TasksResponse {
@@ -55,7 +58,7 @@ class DownloadStationService(val downloadStationConfig: DownloadStationConfig, v
                 "method" to "list",
                 "additional" to "transfer"
             ),
-            cookies = mapOf("smid" to smid, "id" to id)
+            cookies = mapOf("smid" to authCookies.smid, "id" to authCookies.id)
         )
         response.encoding = Charset.defaultCharset()
 
@@ -80,7 +83,7 @@ class DownloadStationService(val downloadStationConfig: DownloadStationConfig, v
             files = listOf(
                 FileLike("file", fileName, fileContent)
             ),
-            cookies = mapOf("smid" to smid, "id" to id)
+            cookies = mapOf("smid" to authCookies.smid, "id" to authCookies.id)
         )
         response.encoding = Charset.defaultCharset()
 
@@ -114,6 +117,7 @@ fun List<Task>.toText(): String {
 Размер: ${(item.size / 1073741824)} ГБ
 Скачано: ${(item.additional?.transfer?.size_downloaded?: 0) / 1073741824} ГБ
 Осталось: ${item.endTime} Мин
+Скорость: ${(item.additional?.transfer?.speed_download?: 0) / 1048576} МБ/c
 """
     }
     return stringTasks

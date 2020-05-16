@@ -9,9 +9,9 @@ class CreateTaskTest {
 
 //    @Test
     fun createTaskTest(){
-        val service = DownloadStationService(restTemplate = RestTemplate(), objectMapper = ObjectMapper())
-        val file = File("/Users/d.pechatnikov/Downloads/file5875840.torrent")
-        val response = service.createTask(file)
+//        val service = DownloadStationService(restTemplate = RestTemplate(), objectMapper = ObjectMapper())
+//        val file = File("/Users/d.pechatnikov/Downloads/file5875840.torrent")
+//        val response = service.createTask(file)
 //        val obj = response.jsonObject
 //        val content = response.content
     }
