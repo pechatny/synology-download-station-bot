@@ -9,11 +9,13 @@ import com.pechatnikov.telegram.bot.dsget.services.ChatService
 import com.pechatnikov.telegram.bot.dsget.services.DownloadStationService
 import com.pechatnikov.telegram.bot.dsget.services.toText
 import com.pechatnikov.telegram.bot.dsget.utils.Utils.Companion.sendMessage
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import net.bytebuddy.utility.RandomString
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
-import org.telegram.telegrambots.meta.ApiContext
 import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.File
@@ -34,7 +36,6 @@ class DsGetBot(
     val LIST_COMMAND = "/list"
     val HELP_COMMAND = "/help"
     val INSTRUCTION = "Для того чтобы скачать фильм или сериал, отправьте .torrent файл в этот чат."
-
     override fun getBotUsername(): String {
         return botConfig.name
     }
@@ -61,8 +62,14 @@ class DsGetBot(
                     saveDocumentHandler(update)
                 } else if (messageText != null && DownloadType.containsText(update.message.text)) {
                     createDownloadTaskHandler(update)
-                    Thread.sleep(30_000)
-                    listCommandHandler(update)
+                    GlobalScope.launch {
+                        delay(1_000)
+                        listCommandHandler(update)
+                    }
+                    GlobalScope.launch {
+                        delay(31_000)
+                        listCommandHandler(update)
+                    }
                 } else {
                     execute(sendMessage("Отправь торрент файл в этот чат для скачивания.", update))
                 }
@@ -70,7 +77,7 @@ class DsGetBot(
         }
     }
 
-    private fun listCommandHandler(update: Update){
+    private fun listCommandHandler(update: Update) {
         logger.info("/list command executing")
         val tasks = downloadStationService.getDownloadingTasks()
         execute(sendMessage(tasks.toText(), update))
@@ -128,10 +135,10 @@ class DsGetBot(
                 commandRow.add(destination.text)
                 commands.add(commandRow)
             }
-            replyKeyboardMarkup.resizeKeyboard = true;
-            replyKeyboardMarkup.oneTimeKeyboard = true;
-            replyKeyboardMarkup.keyboard = commands;
-            replyKeyboardMarkup.selective = true;
+            replyKeyboardMarkup.resizeKeyboard = true
+            replyKeyboardMarkup.oneTimeKeyboard = true
+            replyKeyboardMarkup.keyboard = commands
+            replyKeyboardMarkup.selective = true
 
             message.replyMarkup = replyKeyboardMarkup
             message.text = "Куда скачивать?"

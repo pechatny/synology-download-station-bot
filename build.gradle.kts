@@ -27,6 +27,7 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("com.github.ben-manes.caffeine:caffeine")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7")
 //    implementation("org.springframework.boot:spring-boot-starter-jooq")
 //    implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-web")
