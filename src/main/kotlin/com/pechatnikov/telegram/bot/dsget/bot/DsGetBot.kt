@@ -63,7 +63,7 @@ class DsGetBot(
                 } else if (messageText != null && DownloadType.containsText(update.message.text)) {
                     createDownloadTaskHandler(update)
                     GlobalScope.launch {
-                        delay(1_000)
+                        delay(5_000)
                         listCommandHandler(update)
                     }
                     GlobalScope.launch {
