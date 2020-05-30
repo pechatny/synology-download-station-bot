@@ -9,10 +9,8 @@ import com.pechatnikov.telegram.bot.dsget.services.models.LoginRequest
 import com.pechatnikov.telegram.bot.dsget.services.models.Task
 import com.pechatnikov.telegram.bot.dsget.services.models.TaskStatus
 import com.pechatnikov.telegram.bot.dsget.services.models.TasksResponse
-import khttp.structures.files.FileLike
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.Cacheable
-import org.springframework.cache.annotation.Caching
 import org.springframework.stereotype.Service
 import java.nio.charset.Charset
 
@@ -28,7 +26,7 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
     }
 
     @Cacheable("auth")
-    fun authenticate(login: String, password: String): Authentication{
+    fun authenticate(login: String, password: String): Authentication {
         val request = LoginRequest(login, password).toMap()
         val response = khttp.get(
             url = """$BASE_AUTH_URL?api=${request["api"]}&version=${request["version"]}&method=${request["method"]}&account=${request["account"]}&passwd=${request["passwd"]}&session=${request["session"]}&format=${request["format"]}"""
@@ -69,19 +67,15 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
         return getTasks().data.tasks.filter { it.status == TaskStatus.DOWNLOADING }
     }
 
-//    private fun <E> List<E>.toText(): String {
-//    }
-    private fun post(url: String, destination: String, fileContent: ByteArray, fileName: String): DsResponse {
-        val response = khttp.post(
-            url = BASE_TASK_URL,
+    private fun post(url: String, destination: String, magnetLink: String): DsResponse {
+        val response = khttp.get(
+            url = url,
             data = mapOf(
                 "api" to "SYNO.DownloadStation.Task",
                 "version" to "3",
                 "method" to "create",
-                "destination" to destination
-            ),
-            files = listOf(
-                FileLike("file", fileName, fileContent)
+                "destination" to destination,
+                "uri" to magnetLink
             ),
             cookies = mapOf("smid" to authCookies.smid, "id" to authCookies.id)
         )
@@ -90,14 +84,14 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
         return objectMapper.readValue(response.text, DsResponse::class.java)
     }
 
-    fun createTask(fileString: ByteArray, fileName: String, destination: String): Boolean {
+    fun createTask(magnetLink: String, destination: String): Boolean {
         logger.info("task creation started")
         val response =
-            post(url = BASE_TASK_URL, destination = destination, fileName = fileName, fileContent = fileString)
+            post(url = BASE_TASK_URL, destination = destination, magnetLink = magnetLink)
 
         return if (response.success) {
-            logger.info("task created; filename: $fileName")
-            true;
+            logger.info("task created")
+            true
         } else {
             logger.info("task creation failed")
             logger.info("error code: " + response.error?.code)
@@ -108,16 +102,15 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
 
 fun List<Task>.toText(): String {
     if (this.isEmpty()) return "Нет активных заданий."
-
     var stringTasks = "Активные задания:\r\n"
     for (item in this) {
         stringTasks +=
-"""
+            """
 Название: ${item.title}
 Размер: ${(item.size / 1073741824)} ГБ
-Скачано: ${(item.additional?.transfer?.size_downloaded?: 0) / 1073741824} ГБ
+Скачано: ${(item.additional?.transfer?.size_downloaded ?: 0) / 1073741824} ГБ
 Осталось: ${item.endTime} Мин
-Скорость: ${(item.additional?.transfer?.speed_download?: 0) / 1048576} МБ/c
+Скорость: ${(item.additional?.transfer?.speed_download ?: 0) / 1048576} МБ/c
 """
     }
     return stringTasks

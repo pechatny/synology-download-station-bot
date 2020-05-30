@@ -4,7 +4,6 @@ import javax.persistence.Entity
 import javax.persistence.GeneratedValue
 import javax.persistence.GenerationType
 import javax.persistence.Id
-import javax.persistence.OneToOne
 import javax.persistence.Table
 
 @Entity
@@ -16,5 +15,5 @@ data class Message(
     var messageId: Long,
     var chatId: Long,
     var messageType: String,
-    var content: ByteArray
+    var content: String
 )

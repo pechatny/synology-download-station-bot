@@ -12,13 +12,11 @@ import com.pechatnikov.telegram.bot.dsget.utils.Utils.Companion.sendMessage
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import net.bytebuddy.utility.RandomString
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import org.telegram.telegrambots.bots.DefaultBotOptions
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
-import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
-import org.telegram.telegrambots.meta.api.objects.File
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
@@ -29,8 +27,9 @@ class DsGetBot(
     val botConfig: TelegramBotConfig,
     val downloadStationService: DownloadStationService,
     val authorizeService: AuthorizeService,
-    val chatService: ChatService
-) : TelegramLongPollingBot() {
+    val chatService: ChatService,
+    botOptions: DefaultBotOptions
+) : TelegramLongPollingBot(botOptions) {
     private val logger = LoggerFactory.getLogger(DsGetBot::class.java)
     val START_COMMAND = "/start"
     val LIST_COMMAND = "/list"
@@ -58,8 +57,8 @@ class DsGetBot(
                     execute(sendMessage(INSTRUCTION, update))
                 } else if (messageText != null && (messageText.startsWith(LIST_COMMAND))) {
                     listCommandHandler(update)
-                } else if (update.message.hasDocument()) {
-                    saveDocumentHandler(update)
+                } else if (messageText != null && messageText.startsWith("magnet")) {
+                    saveMagnetHandler(update)
                 } else if (messageText != null && DownloadType.containsText(update.message.text)) {
                     createDownloadTaskHandler(update)
                     GlobalScope.launch {
@@ -85,17 +84,15 @@ class DsGetBot(
 
     private fun createDownloadTaskHandler(update: Update) {
         logger.info("Starting download task creation")
-        val savedMessage: Message? = chatService.getLastDocument(update.message.chatId)
+        val savedMessage: Message? = chatService.getLastMagnet(update.message.chatId)
         if (savedMessage == null) {
-            logger.error("Torrent file not found in the database!")
+            logger.error("Magnet link not found in the database!")
             execute(sendMessage("Торрент файл не найден", update))
             return
         }
-        val fileName = RandomString(9).nextString() + ".torrent"
         val destination = DownloadType.getByText(update.message.text).path
         val message = if (downloadStationService.createTask(
-                fileName = fileName,
-                fileString = savedMessage.content,
+                magnetLink = savedMessage.content,
                 destination = destination
             )
         ) {
@@ -112,37 +109,30 @@ class DsGetBot(
         execute(responseMessage)
     }
 
-    private fun saveDocumentHandler(update: Update) {
-        logger.info("Saving torrent file to the database")
-        val document = update.message.document
+    private fun saveMagnetHandler(update: Update) {
+        logger.info("Saving magnet link to the database")
         val message = SendMessage().setChatId(update.message.chatId)
-        if (document.mimeType == "application/x-bittorrent") {
-            logger.info("File type is application/x-bittorrent")
-            val getFileMethod = GetFile()
-            getFileMethod.fileId = document.fileId
-            val file: File = execute(getFileMethod)
-            val downloadedFile = downloadFile(file)
-            logger.info("File downloaded from Telegram Chat")
-            chatService.saveMessage(
-                update.message.chatId,
-                update.message.messageId.toLong(),
-                downloadedFile.readBytes()
-            )
-            val replyKeyboardMarkup = ReplyKeyboardMarkup()
-            val commands = arrayListOf<KeyboardRow>()
-            for (destination in DownloadType.values()) {
-                val commandRow = KeyboardRow()
-                commandRow.add(destination.text)
-                commands.add(commandRow)
-            }
-            replyKeyboardMarkup.resizeKeyboard = true
-            replyKeyboardMarkup.oneTimeKeyboard = true
-            replyKeyboardMarkup.keyboard = commands
-            replyKeyboardMarkup.selective = true
 
-            message.replyMarkup = replyKeyboardMarkup
-            message.text = "Куда скачивать?"
+        chatService.saveMessage(
+            update.message.chatId,
+            update.message.messageId.toLong(),
+            update.message.text
+        )
+        logger.info("Magnet link saved to database")
+        val replyKeyboardMarkup = ReplyKeyboardMarkup()
+        val commands = arrayListOf<KeyboardRow>()
+        for (destination in DownloadType.values()) {
+            val commandRow = KeyboardRow()
+            commandRow.add(destination.text)
+            commands.add(commandRow)
         }
+        replyKeyboardMarkup.resizeKeyboard = true
+        replyKeyboardMarkup.oneTimeKeyboard = true
+        replyKeyboardMarkup.keyboard = commands
+        replyKeyboardMarkup.selective = true
+
+        message.replyMarkup = replyKeyboardMarkup
+        message.text = "Куда скачивать?"
 
         execute(message)
     }

@@ -15,13 +15,13 @@ class ChatService(val chatsRepository: ChatsRepository, val messagesRepository: 
         return chat
     }
 
-    fun saveMessage(chatId: Long, messageId: Long, readText: ByteArray) {
-        val message = Message(chatId = chatId, messageId = messageId, content = readText, messageType = "document")
+    fun saveMessage(chatId: Long, messageId: Long, readText: String) {
+        val message = Message(chatId = chatId, messageId = messageId, content = readText, messageType = "magnet")
         messagesRepository.save(message)
     }
 
-    fun getLastDocument(chatId: Long): Message? {
-        return messagesRepository.findFirstByChatIdAndMessageTypeOrderByIdDesc(chatId, "document")
+    fun getLastMagnet(chatId: Long): Message? {
+        return messagesRepository.findFirstByChatIdAndMessageTypeOrderByIdDesc(chatId, "magnet")
     }
 
     fun setStage(chatId: Long, stage: String) {

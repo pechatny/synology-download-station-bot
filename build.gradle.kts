@@ -7,10 +7,11 @@ plugins {
     kotlin("plugin.spring") version "1.3.71"
     kotlin("plugin.allopen") version "1.3.72"
     kotlin("plugin.jpa") version "1.3.71"
+    kotlin("kapt") version "1.3.71"
 }
 val kotlinVersion = "1.3.71"
 group = "com.pechatnikov.telegram.bot"
-version = "0.0.1-SNAPSHOT"
+version = "1.0.0"
 java.sourceCompatibility = JavaVersion.VERSION_1_8
 val developmentOnly by configurations.creating
 configurations {
@@ -43,6 +44,7 @@ dependencies {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
     }
     testImplementation("org.springframework.security:spring-security-test")
+    kapt("org.springframework.boot:spring-boot-configuration-processor")
 }
 
 tasks.withType<Test> {
