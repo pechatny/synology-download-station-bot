@@ -11,7 +11,7 @@ plugins {
 }
 val kotlinVersion = "1.3.71"
 group = "com.pechatnikov.telegram.bot"
-version = "1.0.0"
+version = "1.0.1"
 java.sourceCompatibility = JavaVersion.VERSION_1_8
 val developmentOnly by configurations.creating
 configurations {
