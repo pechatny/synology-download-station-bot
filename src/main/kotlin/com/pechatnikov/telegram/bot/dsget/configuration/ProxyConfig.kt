@@ -10,4 +10,5 @@ class ProxyConfig {
     lateinit var host: String
     var type: DefaultBotOptions.ProxyType = DefaultBotOptions.ProxyType.HTTP
     var port: Int = 0
+    var enabled: Boolean = false
 }

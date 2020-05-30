@@ -24,7 +24,7 @@ create table messages
   id serial not null,
   message_id integer not null,
   message_type varchar,
-  content bytea,
+  content varchar,
   created_at timestamp,
   chat_id integer
 );

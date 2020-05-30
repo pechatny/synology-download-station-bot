@@ -7,8 +7,10 @@ import org.telegram.telegrambots.bots.DefaultBotOptions
 @Component
 class DsGetBotOptions(proxyConfig: ProxyConfig) : DefaultBotOptions() {
     init {
-        proxyHost = proxyConfig.host
-        proxyType = proxyConfig.type
-        proxyPort = proxyConfig.port
+        if (proxyConfig.enabled) {
+            proxyHost = proxyConfig.host
+            proxyType = proxyConfig.type
+            proxyPort = proxyConfig.port
+        }
     }
 }
