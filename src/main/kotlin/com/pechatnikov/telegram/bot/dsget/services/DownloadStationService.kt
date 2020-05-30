@@ -30,25 +30,22 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
         val request = LoginRequest(login, password).toMap()
         val response = khttp.get(
             url = """$BASE_AUTH_URL?api=${request["api"]}&version=${request["version"]}&method=${request["method"]}&account=${request["account"]}&passwd=${request["passwd"]}&session=${request["session"]}&format=${request["format"]}"""
-        )
-        response.encoding = Charset.defaultCharset()
+        ).apply { encoding = Charset.defaultCharset() }
         val dsResponse = objectMapper.readValue(response.text, DsResponse::class.java)
         val authCookies = AuthCookies(response.cookies["id"].toString(), response.cookies["smid"].toString())
         return Authentication(dsResponse, authCookies)
     }
 
     fun auth(login: String, password: String): Boolean {
-        val authentication = authenticate(downloadStationConfig.login, downloadStationConfig.password)
-        return authentication.dsResponse.success
+        return authenticate(downloadStationConfig.login, downloadStationConfig.password).dsResponse.success
     }
 
     private fun login() {
-        val authentication = authenticate(downloadStationConfig.login, downloadStationConfig.password)
-        authCookies = authentication.authCookies
+        authCookies = authenticate(downloadStationConfig.login, downloadStationConfig.password).authCookies
     }
 
     private fun getTasks(): TasksResponse {
-        val response = khttp.get(
+        return khttp.get(
             url = BASE_TASK_URL,
             params = mapOf(
                 "api" to "SYNO.DownloadStation.Task",
@@ -58,18 +55,18 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
             ),
             cookies = mapOf("smid" to authCookies.smid, "id" to authCookies.id)
         )
-        response.encoding = Charset.defaultCharset()
-
-        return objectMapper.readValue(response.text, TasksResponse::class.java)
+            .apply { encoding = Charset.defaultCharset() }
+            .let { objectMapper.readValue(it.text, TasksResponse::class.java) }
     }
 
     fun getDownloadingTasks(): List<Task> {
         return getTasks().data.tasks.filter { it.status == TaskStatus.DOWNLOADING }
     }
 
-    private fun post(url: String, destination: String, magnetLink: String): DsResponse {
+    fun createTask(magnetLink: String, destination: String): Boolean {
+        logger.info("task creation started")
         val response = khttp.get(
-            url = url,
+            url = BASE_TASK_URL,
             data = mapOf(
                 "api" to "SYNO.DownloadStation.Task",
                 "version" to "3",
@@ -79,15 +76,8 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
             ),
             cookies = mapOf("smid" to authCookies.smid, "id" to authCookies.id)
         )
-        response.encoding = Charset.defaultCharset()
-
-        return objectMapper.readValue(response.text, DsResponse::class.java)
-    }
-
-    fun createTask(magnetLink: String, destination: String): Boolean {
-        logger.info("task creation started")
-        val response =
-            post(url = BASE_TASK_URL, destination = destination, magnetLink = magnetLink)
+            .apply { encoding = Charset.defaultCharset() }
+            .let { objectMapper.readValue(it.text, DsResponse::class.java) }
 
         return if (response.success) {
             logger.info("task created")
@@ -103,15 +93,7 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
 fun List<Task>.toText(): String {
     if (this.isEmpty()) return "Нет активных заданий."
     var stringTasks = "Активные задания:\r\n"
-    for (item in this) {
-        stringTasks +=
-            """
-Название: ${item.title}
-Размер: ${(item.size / 1073741824)} ГБ
-Скачано: ${(item.additional?.transfer?.size_downloaded ?: 0) / 1073741824} ГБ
-Осталось: ${item.endTime} Мин
-Скорость: ${(item.additional?.transfer?.speed_download ?: 0) / 1048576} МБ/c
-"""
-    }
+    this.forEach { stringTasks += it }
+
     return stringTasks
 }

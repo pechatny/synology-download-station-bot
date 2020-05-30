@@ -34,7 +34,7 @@ class DsGetBot(
     val START_COMMAND = "/start"
     val LIST_COMMAND = "/list"
     val HELP_COMMAND = "/help"
-    val INSTRUCTION = "Для того чтобы скачать фильм или сериал, отправьте .torrent файл в этот чат."
+    val INSTRUCTION = "Для того чтобы скачать фильм или сериал, отправьте Magnet link в этот чат."
     override fun getBotUsername(): String {
         return botConfig.name
     }
@@ -48,7 +48,7 @@ class DsGetBot(
             logger.info("Message from User: id:${update.message.from.id}; firstName:${update.message.from.firstName}; lastName:${update.message.from.lastName}")
             val user: User = authorizeService.checkUser(update.message.from.id.toLong(), update.message.chatId)
             if (!user.authorized) {
-                logger.info("User not authrized, starting authorization")
+                logger.info("User not authorized, starting authorization")
                 authorizeService.authorize(user, update)?.let { execute(it) }
             } else {
                 val messageText = update.message.text
@@ -62,15 +62,15 @@ class DsGetBot(
                 } else if (messageText != null && DownloadType.containsText(update.message.text)) {
                     createDownloadTaskHandler(update)
                     GlobalScope.launch {
-                        delay(5_000)
+                        delay(10_000)
                         listCommandHandler(update)
                     }
                     GlobalScope.launch {
-                        delay(31_000)
+                        delay(61_000)
                         listCommandHandler(update)
                     }
                 } else {
-                    execute(sendMessage("Отправь торрент файл в этот чат для скачивания.", update))
+                    execute(sendMessage("Отправь Magnet link в этот чат для скачивания.", update))
                 }
             }
         }
@@ -87,7 +87,7 @@ class DsGetBot(
         val savedMessage: Message? = chatService.getLastMagnet(update.message.chatId)
         if (savedMessage == null) {
             logger.error("Magnet link not found in the database!")
-            execute(sendMessage("Торрент файл не найден", update))
+            execute(sendMessage("Торрент не найден", update))
             return
         }
         val destination = DownloadType.getByText(update.message.text).path

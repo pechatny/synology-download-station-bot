@@ -1,7 +1,6 @@
 package com.pechatnikov.telegram.bot.dsget.services
 
 import com.pechatnikov.telegram.bot.dsget.db.models.User
-import com.pechatnikov.telegram.bot.dsget.db.repositories.UsersRepository
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
@@ -26,28 +25,32 @@ class AuthorizeService(
     }
 
     fun authorize(user: User, update: Update): SendMessage? {
-        if (user.chat?.stage == "message") {
-            chatService.setStage(update.message.chatId, "authorization")
-            val responseMessage = SendMessage().setChatId(update.message.chatId)
-            responseMessage.text =
-                "Введите логин и пароль от сетевого хранилища. Например: serverlogin password"
-            return responseMessage
-        } else if (user.chat?.stage == "authorization") {
-            val credentials = update.message.text.split(" ")
-            val authResult = downloadStationService.auth(credentials[0], credentials[1])
-            return if (authResult) {
-                chatService.setStage(update.message.chatId, "message")
-                userService.setAuthorized(user)
+        when (user.chat?.stage) {
+            "message" -> {
+                chatService.setStage(update.message.chatId, "authorization")
                 val responseMessage = SendMessage().setChatId(update.message.chatId)
-                responseMessage.text = "Вы успешно авторизованы!"
-                responseMessage
-            } else {
-                val responseMessage = SendMessage().setChatId(update.message.chatId)
-                responseMessage.text = "Ошбика авторизации. Попробуйте другие логин и пароль!"
-                responseMessage
+                responseMessage.text =
+                    "Введите логин и пароль от сетевого хранилища. Например: serverlogin password"
+                return responseMessage
             }
-        } else {
-            return null
+            "authorization" -> {
+                val credentials = update.message.text.split(" ")
+                val authResult = downloadStationService.auth(credentials[0], credentials[1])
+                return if (authResult) {
+                    chatService.setStage(update.message.chatId, "message")
+                    userService.setAuthorized(user)
+                    val responseMessage = SendMessage().setChatId(update.message.chatId)
+                    responseMessage.text = "Вы успешно авторизованы!"
+                    responseMessage
+                } else {
+                    val responseMessage = SendMessage().setChatId(update.message.chatId)
+                    responseMessage.text = "Ошбика авторизации. Попробуйте другие логин и пароль!"
+                    responseMessage
+                }
+            }
+            else -> {
+                return null
+            }
         }
     }
 }

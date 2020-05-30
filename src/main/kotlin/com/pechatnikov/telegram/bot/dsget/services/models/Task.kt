@@ -5,8 +5,6 @@ import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer
-import java.lang.Exception
-import java.lang.IllegalArgumentException
 
 data class Task(
     val id: String,
@@ -30,13 +28,22 @@ data class Task(
                 val lostSize = this.size - transfer.size_downloaded
                 try {
                     estimatedEndTime = (lostSize / transfer.speed_download / 60).toString()
-                } catch (e: Exception){
-
+                } catch (e: Exception) {
                 }
             }
         }
 
         return estimatedEndTime
+    }
+
+    override fun toString(): String {
+        return """
+Название: ${title}
+Размер: ${(size / 1073741824)} ГБ
+Скачано: ${(additional?.transfer?.size_downloaded ?: 0) / 1073741824} ГБ
+Осталось: $endTime Мин
+Скорость: ${(additional?.transfer?.speed_download ?: 0) / 1048576} МБ/c
+"""
     }
 }
 

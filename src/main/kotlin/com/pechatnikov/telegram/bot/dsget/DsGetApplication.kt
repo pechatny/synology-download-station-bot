@@ -13,4 +13,3 @@ fun main(args: Array<String>) {
     ApiContextInitializer.init()
     runApplication<DsGetApplication>(*args)
 }
-
