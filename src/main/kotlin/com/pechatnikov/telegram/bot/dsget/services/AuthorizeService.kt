@@ -1,6 +1,7 @@
 package com.pechatnikov.telegram.bot.dsget.services
 
 import com.pechatnikov.telegram.bot.dsget.db.models.User
+import com.pechatnikov.telegram.bot.dsget.services.types.Stage
 import org.springframework.stereotype.Service
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
 import org.telegram.telegrambots.meta.api.objects.Update
@@ -26,18 +27,18 @@ class AuthorizeService(
 
     fun authorize(user: User, update: Update): SendMessage? {
         when (user.chat?.stage) {
-            "message" -> {
-                chatService.setStage(update.message.chatId, "authorization")
+            Stage.MESSAGE -> {
+                chatService.setStage(update.message.chatId, Stage.AUTHORIZATION)
                 val responseMessage = SendMessage().setChatId(update.message.chatId)
                 responseMessage.text =
                     "Введите логин и пароль от сетевого хранилища. Например: serverlogin password"
                 return responseMessage
             }
-            "authorization" -> {
+            Stage.AUTHORIZATION -> {
                 val credentials = update.message.text.split(" ")
                 val authResult = downloadStationService.auth(credentials[0], credentials[1])
                 return if (authResult) {
-                    chatService.setStage(update.message.chatId, "message")
+                    chatService.setStage(update.message.chatId, Stage.MESSAGE)
                     userService.setAuthorized(user)
                     val responseMessage = SendMessage().setChatId(update.message.chatId)
                     responseMessage.text = "Вы успешно авторизованы!"

@@ -31,10 +31,11 @@ class DsGetBot(
     botOptions: DefaultBotOptions
 ) : TelegramLongPollingBot(botOptions) {
     private val logger = LoggerFactory.getLogger(DsGetBot::class.java)
-    val START_COMMAND = "/start"
-    val LIST_COMMAND = "/list"
-    val HELP_COMMAND = "/help"
-    val INSTRUCTION = "Для того чтобы скачать фильм или сериал, отправьте Magnet link в этот чат."
+    private val MAGNET_LINK_PREFIX = "magnet"
+    private val START_COMMAND = "/start"
+    private val LIST_COMMAND = "/list"
+    private val HELP_COMMAND = "/help"
+    private val INSTRUCTION = "Для того чтобы скачать фильм или сериал, отправьте Magnet link в этот чат."
     override fun getBotUsername(): String {
         return botConfig.name
     }
@@ -57,7 +58,7 @@ class DsGetBot(
                     execute(sendMessage(INSTRUCTION, update))
                 } else if (messageText != null && (messageText.startsWith(LIST_COMMAND))) {
                     listCommandHandler(update)
-                } else if (messageText != null && messageText.startsWith("magnet")) {
+                } else if (messageText != null && messageText.startsWith(MAGNET_LINK_PREFIX)) {
                     saveMagnetHandler(update)
                 } else if (messageText != null && DownloadType.containsText(update.message.text)) {
                     createDownloadTaskHandler(update)

@@ -7,8 +7,8 @@ import com.pechatnikov.telegram.bot.dsget.services.models.Authentication
 import com.pechatnikov.telegram.bot.dsget.services.models.DsResponse
 import com.pechatnikov.telegram.bot.dsget.services.models.LoginRequest
 import com.pechatnikov.telegram.bot.dsget.services.models.Task
-import com.pechatnikov.telegram.bot.dsget.services.models.TaskStatus
 import com.pechatnikov.telegram.bot.dsget.services.models.TasksResponse
+import com.pechatnikov.telegram.bot.dsget.services.types.TaskStatus
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
