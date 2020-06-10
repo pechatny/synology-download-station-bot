@@ -34,6 +34,7 @@ class DsGetBot(
     private val MAGNET_LINK_PREFIX = "magnet"
     private val START_COMMAND = "/start"
     private val LIST_COMMAND = "/list"
+    private val POLLING_COMMAND = "/poll"
     private val HELP_COMMAND = "/help"
     private val INSTRUCTION = "Для того чтобы скачать фильм или сериал, отправьте Magnet link в этот чат."
     override fun getBotUsername(): String {
@@ -58,6 +59,10 @@ class DsGetBot(
                     execute(sendMessage(INSTRUCTION, update))
                 } else if (messageText != null && (messageText.startsWith(LIST_COMMAND))) {
                     listCommandHandler(update)
+                } else if (messageText != null && (messageText.startsWith(POLLING_COMMAND))) {
+                    GlobalScope.launch {
+                        downloadingTasksPollingHandler(update)
+                    }
                 } else if (messageText != null && messageText.startsWith(MAGNET_LINK_PREFIX)) {
                     saveMagnetHandler(update)
                 } else if (messageText != null && DownloadType.containsText(update.message.text)) {
@@ -65,16 +70,39 @@ class DsGetBot(
                     GlobalScope.launch {
                         delay(10_000)
                         listCommandHandler(update)
-                    }
-                    GlobalScope.launch {
-                        delay(61_000)
-                        listCommandHandler(update)
+                        downloadingTasksPollingHandler(update)
                     }
                 } else {
                     execute(sendMessage("Отправь Magnet link в этот чат для скачивания.", update))
                 }
             }
         }
+    }
+
+    private suspend fun downloadingTasksPollingHandler(update: Update) {
+        logger.info("/downloading tasks polling")
+        val result = poll {
+            val tasks = downloadStationService.getDownloadingTasks()
+            if (tasks.isEmpty()) {
+                true
+            } else {
+                tasks.last().let { it.additional?.transfer?.speed_download ?: 0 > 0 }
+            }
+        }
+        val tasks = downloadStationService.getDownloadingTasks()
+        val message = when {
+            tasks.isEmpty() -> {
+                "Нет заданий на скачивание"
+            }
+            result -> {
+                tasks.toText()
+            }
+            else -> {
+                "Скорость скачивания последнего задания пока еще нулевая"
+            }
+        }
+
+        execute(sendMessage(message, update))
     }
 
     private fun listCommandHandler(update: Update) {
@@ -136,5 +164,20 @@ class DsGetBot(
         message.text = "Куда скачивать?"
 
         execute(message)
+    }
+
+    suspend fun poll(action: () -> Boolean): Boolean {
+        var initialDelay = 30_000L
+        var result = false
+        for (i in 1..5) {
+            delay(initialDelay)
+            initialDelay *= 2L
+            logger.info("Attempt $i")
+            result = action()
+            if (result) break
+        }
+
+        logger.info("Result $result")
+        return result
     }
 }
