@@ -1,5 +1,6 @@
 package com.pechatnikov.telegram.bot.dsget.bot
 
+import com.pechatnikov.telegram.bot.dsget.configuration.PathConfig
 import com.pechatnikov.telegram.bot.dsget.configuration.TelegramBotConfig
 import com.pechatnikov.telegram.bot.dsget.db.models.Message
 import com.pechatnikov.telegram.bot.dsget.db.models.User
@@ -8,6 +9,7 @@ import com.pechatnikov.telegram.bot.dsget.services.AuthorizeService
 import com.pechatnikov.telegram.bot.dsget.services.ChatService
 import com.pechatnikov.telegram.bot.dsget.services.DownloadStationService
 import com.pechatnikov.telegram.bot.dsget.services.toText
+import com.pechatnikov.telegram.bot.dsget.services.types.MessageType
 import com.pechatnikov.telegram.bot.dsget.utils.Utils.Companion.sendMessage
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -16,11 +18,14 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.telegram.telegrambots.bots.DefaultBotOptions
 import org.telegram.telegrambots.bots.TelegramLongPollingBot
+import org.telegram.telegrambots.meta.api.methods.GetFile
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage
+import org.telegram.telegrambots.meta.api.objects.File
 import org.telegram.telegrambots.meta.api.objects.Update
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow
+import java.util.UUID
 
 @Component
 class DsGetBot(
@@ -28,6 +33,7 @@ class DsGetBot(
     val downloadStationService: DownloadStationService,
     val authorizeService: AuthorizeService,
     val chatService: ChatService,
+    val pathConfig: PathConfig,
     botOptions: DefaultBotOptions
 ) : TelegramLongPollingBot(botOptions) {
     private val logger = LoggerFactory.getLogger(DsGetBot::class.java)
@@ -65,6 +71,8 @@ class DsGetBot(
                     }
                 } else if (messageText != null && messageText.startsWith(MAGNET_LINK_PREFIX)) {
                     saveMagnetHandler(update)
+                } else if (update.message.hasDocument()) {
+                    saveDocumentHandler(update)
                 } else if (messageText != null && DownloadType.containsText(update.message.text)) {
                     createDownloadTaskHandler(update)
                     GlobalScope.launch {
@@ -113,18 +121,33 @@ class DsGetBot(
 
     private fun createDownloadTaskHandler(update: Update) {
         logger.info("Starting download task creation")
-        val savedMessage: Message? = chatService.getLastMagnet(update.message.chatId)
+        val savedMessage: Message? = chatService.getLastMessage(update.message.chatId)
         if (savedMessage == null) {
             logger.error("Magnet link not found in the database!")
             execute(sendMessage("Торрент не найден", update))
             return
         }
         val destination = DownloadType.getByText(update.message.text).path
-        val message = if (downloadStationService.createTask(
+        var taskCreationResult = false
+        if (savedMessage.messageType == MessageType.TORRENT) {
+            val file = java.io.File(savedMessage.content)
+
+            if (file.exists()) {
+                taskCreationResult = downloadStationService.createTorrentTask(
+                    torrentFile = file,
+                    destination = destination
+                )
+            } else {
+                taskCreationResult = false
+                logger.error("File not exists in path" + file.path)
+            }
+        } else if (savedMessage.messageType == MessageType.MAGNET) {
+            taskCreationResult = downloadStationService.createMagnetTask(
                 magnetLink = savedMessage.content,
                 destination = destination
             )
-        ) {
+        }
+        val message = if (taskCreationResult) {
             logger.info("Download task successfully created!")
             "Файл добавлен на закачку"
         } else {
@@ -145,9 +168,15 @@ class DsGetBot(
         chatService.saveMessage(
             update.message.chatId,
             update.message.messageId.toLong(),
-            update.message.text
+            update.message.text,
+            MessageType.MAGNET
         )
         logger.info("Magnet link saved to database")
+
+        showDownloadKeyboard(message)
+    }
+
+    private fun showDownloadKeyboard(message: SendMessage) {
         val replyKeyboardMarkup = ReplyKeyboardMarkup()
         val commands = arrayListOf<KeyboardRow>()
         for (destination in DownloadType.values()) {
@@ -162,8 +191,33 @@ class DsGetBot(
 
         message.replyMarkup = replyKeyboardMarkup
         message.text = "Куда скачивать?"
-
         execute(message)
+    }
+
+    private fun saveDocumentHandler(update: Update) {
+        logger.info("Saving torrent file to the database")
+        val document = update.message.document
+        val message = SendMessage().setChatId(update.message.chatId)
+        if (document.mimeType == "application/x-bittorrent") {
+            logger.info("File type is application/x-bittorrent")
+            val getFileMethod = GetFile()
+            getFileMethod.fileId = document.fileId
+            val file: File = execute(getFileMethod)
+            val downloadedFile = downloadFile(file)
+            val targetFile = java.io.File(pathConfig.torrents + UUID.randomUUID() + ".torrent")
+            downloadedFile.renameTo(targetFile)
+
+            logger.info("File downloaded from Telegram Chat")
+            logger.info("File file saved to ${targetFile.path}")
+            chatService.saveMessage(
+                update.message.chatId,
+                update.message.messageId.toLong(),
+                targetFile.path,
+                messageType = MessageType.TORRENT
+            )
+
+            showDownloadKeyboard(message)
+        }
     }
 
     suspend fun poll(action: () -> Boolean): Boolean {

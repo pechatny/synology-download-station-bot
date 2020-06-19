@@ -9,9 +9,11 @@ import com.pechatnikov.telegram.bot.dsget.services.models.LoginRequest
 import com.pechatnikov.telegram.bot.dsget.services.models.Task
 import com.pechatnikov.telegram.bot.dsget.services.models.TasksResponse
 import com.pechatnikov.telegram.bot.dsget.services.types.TaskStatus
+import khttp.structures.files.FileLike
 import org.slf4j.LoggerFactory
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
+import java.io.File
 import java.nio.charset.Charset
 
 @Service
@@ -63,7 +65,7 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
         return getTasks().data.tasks.filter { it.status == TaskStatus.DOWNLOADING }
     }
 
-    fun createTask(magnetLink: String, destination: String): Boolean {
+    fun createMagnetTask(magnetLink: String, destination: String): Boolean {
         logger.info("task creation started")
         val response = khttp.get(
             url = BASE_TASK_URL,
@@ -79,6 +81,36 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
             .apply { encoding = Charset.defaultCharset() }
             .let { objectMapper.readValue(it.text, DsResponse::class.java) }
 
+        return if (response.success) {
+            logger.info("task created")
+            true
+        } else {
+            logger.info("task creation failed")
+            logger.info("error code: " + response.error?.code)
+            false
+        }
+    }
+
+    fun createTorrentTask(torrentFile: File, destination: String): Boolean {
+        logger.info("task creation started")
+        logger.info("torrent file path is " + torrentFile.path)
+        val response = khttp.post(
+            url = BASE_TASK_URL,
+            data = mapOf(
+                "api" to "SYNO.DownloadStation.Task",
+                "version" to "3",
+                "method" to "create",
+                "destination" to destination
+            ),
+            files = listOf(
+                FileLike("file", torrentFile.name, torrentFile.readBytes())
+            ),
+            cookies = mapOf("smid" to authCookies.smid, "id" to authCookies.id)
+        )
+            .apply { encoding = Charset.defaultCharset() }
+            .let { objectMapper.readValue(it.text, DsResponse::class.java) }
+
+        torrentFile.delete()
         return if (response.success) {
             logger.info("task created")
             true
