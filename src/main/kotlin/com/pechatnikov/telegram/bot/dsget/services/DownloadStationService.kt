@@ -41,7 +41,7 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
     }
 
     fun auth(login: String, password: String): Boolean {
-        return authenticate(downloadStationConfig.login, downloadStationConfig.password).dsResponse.success
+        return authenticate(login, password).dsResponse.success
     }
 
     private fun login() {

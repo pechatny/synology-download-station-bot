@@ -35,8 +35,11 @@ class AuthorizeService(
                 return responseMessage
             }
             Stage.AUTHORIZATION -> {
-                val credentials = update.message.text.split(" ")
-                val authResult = downloadStationService.auth(credentials[0], credentials[1])
+                var authResult: Boolean
+                update.message.text.split(" ").takeIf { it.size == 2 }.let { credentials ->
+                    authResult =
+                        downloadStationService.auth(credentials?.get(0) ?: "null", credentials?.get(1) ?: "null")
+                }
                 return if (authResult) {
                     chatService.setStage(update.message.chatId, Stage.MESSAGE)
                     userService.setAuthorized(user)
