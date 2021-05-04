@@ -121,7 +121,6 @@ class DownloadStationService(private val downloadStationConfig: DownloadStationC
             true
         } else {
             logger.info("task creation failed")
-            //
 //            logger.info("error code: " + response.error?.code)
             false
         }
