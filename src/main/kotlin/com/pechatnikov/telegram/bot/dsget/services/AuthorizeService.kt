@@ -13,15 +13,11 @@ class AuthorizeService(
     val downloadStationService: DownloadStationService
 ) {
     fun checkUser(userId: Long, chatId: Long): User {
-        val user: User? = userService.findByUserId(userId)
-
-        return if (user == null) {
+        return userService.findByUserId(userId) ?: let {
             val newUser = userService.create(userId)
             newUser.chat = chatService.createChat(chatId)
             userService.update(newUser)
             newUser
-        } else {
-            user
         }
     }
 
