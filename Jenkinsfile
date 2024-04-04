@@ -16,12 +16,6 @@ pipeline {
             steps{
                 script{
                     dockerImage = docker.build imageName
-                }
-            }
-        }
-        stage('Docker Run') {
-            steps {
-                script {
                     sh 'docker run -d --rm --name ds-get-telegram-bot-ci -e ENVIRONMENT_PROFILE_NAME=\'synology\' ' + imageName
                 }
             }
