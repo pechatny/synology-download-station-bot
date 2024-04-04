@@ -1,8 +1,8 @@
 pipeline {
     environment {
-        imageName = "192.168.88.248:8082/repository/my-local-docker-repo/dsget-bot-app:$BUILD_NUMBER"
+        imageName = "nexus.pechatny.synology.me:4445/repository/my-local-docker-repo/dsget-bot-app:$BUILD_NUMBER"
         registryCredentials = "nexus-jenkins-docker"
-        registry = "http://192.168.88.248:8082"
+        registry = "https://nexus.pechatny.synology.me:4445"
         dockerImage = ''
     }
     agent any
