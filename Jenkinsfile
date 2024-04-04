@@ -19,17 +19,6 @@ pipeline {
                 }
             }
         }
-
-        stage('Upload image to Nexus') {
-            steps {
-                script {
-                    withDockerRegistry(credentialsId: registryCredentials, url: registry) {
-                        dockerImage.push()
-                    }
-                }
-            }
-        }
-
         stage('Docker Run') {
             steps {
                 script {
